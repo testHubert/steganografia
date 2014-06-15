@@ -3,12 +3,20 @@ package gui;
 import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Paths;
 
+import javax.imageio.ImageIO;
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
@@ -16,13 +24,23 @@ import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 
+import org.imgscalr.Scalr;
+
 /** @author Hubert */
 public class MainWindow {
+	
+	private static enum Kolor {
+		CZERWONY, ZIELONY, NIEBIESKI
+	}
 
+	private final static String tBLAD = "B³¹d";
 	private final static String tWEJSCIE = "Scie¿ka do obrazka";
 	private final static String tWYJSCIE = "Gdzie zapisaæ obrazek z wtopion¹ b¹dŸ wyzerowan¹ wiadomoœci¹";
 	private final static String tWIADOMOSC = "Scie¿ka do pliku z wiadomoœci¹ lub gdzie zapisaæ ekstrahowan¹ wiadomoœæ";
 	private final static String bSZUKAJ = "Szukaj...";
+	private final static String eBRAKPLIKU = "Brak pliku w: ";
+	private final static String eMALY = "Za ma³y obrazek.";
+	private final static String SUKCES = "Operacja zakoñczona pomyœlnie.";
 
 	private boolean tryb = true;
 	private JFrame frame;
@@ -34,6 +52,7 @@ public class MainWindow {
 	private static JLabel obrazekWyjscie;
 	private static JLabel opisObrazekWejscie;
 	private static JLabel opisObrazekWyjscie;
+	private static BufferedImage imgWej;
 
 	/** Main */
 	public static void main(String[] args) {
@@ -69,6 +88,261 @@ public class MainWindow {
 	/** Konstruktor */
 	public MainWindow() {
 		initGUI();
+	}
+	
+	private static void wtapianie(Kolor kolor) {
+		try {
+			wczytajWejscie();
+		} catch (IOException e) {
+			return;
+		}
+		/* Wczytanie wiadomoœci */
+		byte[] wiadomosc = null;
+		try {
+			wiadomosc = Files
+					.readAllBytes(Paths.get(sciezkaWiadomosc.getText()));
+		} catch (NoSuchFileException e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(panel,
+					eBRAKPLIKU + e.getLocalizedMessage(), tBLAD,
+					JOptionPane.ERROR_MESSAGE);
+			sciezkaWiadomosc.setText(eBRAKPLIKU + sciezkaWiadomosc.getText());
+			return;
+		} catch (IOException | OutOfMemoryError e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(panel, e.getLocalizedMessage(),
+					tBLAD, JOptionPane.ERROR_MESSAGE);
+			sciezkaWiadomosc.setText(e.getLocalizedMessage());
+			return;
+		}
+		final int width = imgWej.getWidth();
+		final int height = imgWej.getHeight();
+		final int length = wiadomosc.length;
+		if (width * height >= Integer.SIZE + length * 8) {
+			/* Zapis d³ugoœci wiadomoœci */
+			byte[] wiadomoscBit = new byte[Integer.SIZE + length * 8];
+			int b = 0, maska = 0x80000000;
+			for (int i = Integer.SIZE - 1; i >= 0; i--) {
+				wiadomoscBit[b++] = (byte) ((length & maska) >> i);
+				maska >>>= 1;
+			}
+			/* Bajty do bitów */
+			for (int i = 0; i < length; i++) {
+				maska = 0x80;
+				for (int j = 7; j >= 0; j--) {
+					wiadomoscBit[b++] = (byte) ((wiadomosc[i] & maska) >> j);
+					maska >>>= 1;
+				}
+			}
+			/* Wybór maski koloru */
+			final int shift;
+			switch (kolor) {
+			case CZERWONY:
+				maska = 0x00010000;
+				shift = 16;
+				break;
+			case ZIELONY:
+				maska = 0x00000100;
+				shift = 8;
+				break;
+			case NIEBIESKI:
+				maska = 0x00000001;
+				shift = 0;
+				break;
+			default:
+				throw new IllegalArgumentException("Niepoprawny kolor: "
+						+ kolor);
+			}
+			/* Wtapianie */
+			b = 0;
+			int rgb;
+			BufferedImage imgWyj = new BufferedImage(width, height,
+					BufferedImage.TYPE_INT_RGB);
+			for (int x = 0; x < width; x++)
+				for (int y = 0; y < height; y++) {
+					rgb = imgWej.getRGB(x, y);
+					if (b < wiadomoscBit.length)
+						if (((rgb & maska) >> shift) != wiadomoscBit[b++])
+							rgb ^= maska;
+					imgWyj.setRGB(x, y, rgb);
+				}
+			imgWej.flush();
+			try {
+				zapiszWyjscie(imgWyj);
+			} catch (IOException e) {
+				return;
+			}
+			JOptionPane.showMessageDialog(panel, SUKCES + "\nZapisano "
+					+ length + " bajtów wiadomoœci.", "Sukces",
+					JOptionPane.INFORMATION_MESSAGE);
+		} else
+			JOptionPane.showMessageDialog(panel, eMALY + "\nWymiary obrazka: "
+					+ width + " x " + height + " = " + (width * height)
+					+ " pikseli - " + Integer.SIZE + " na d³ugoœæ = "
+					+ (width * height / 8 - Integer.SIZE / 8)
+					+ " bajtów mo¿liwych do zapisania.\nD³ugoœæ wiadomoœci: "
+					+ length + " bajtów.", tBLAD, JOptionPane.ERROR_MESSAGE);
+	}
+	
+	private static void ekstrahowanie(Kolor kolor) {
+		try {
+			wczytajWejscie();
+		} catch (IOException e) {
+			return;
+		}
+		final int width = imgWej.getWidth();
+		final int height = imgWej.getHeight();
+		if (width * height >= Integer.SIZE) {
+			/* Wybór maski koloru */
+			final int maskaOdczytu, maskaZerowania, shift;
+			switch (kolor) {
+			case CZERWONY:
+				maskaOdczytu = 0x00010000;
+				maskaZerowania = 0xFFFEFFFF;
+				shift = 16;
+				break;
+			case ZIELONY:
+				maskaOdczytu = 0x00000100;
+				maskaZerowania = 0xFFFFFEFF;
+				shift = 8;
+				break;
+			case NIEBIESKI:
+				maskaOdczytu = 0x00000001;
+				maskaZerowania = 0xFFFFFFFE;
+				shift = 0;
+				break;
+			default:
+				throw new IllegalArgumentException("Nieprawid³owy kolor: "
+						+ kolor);
+			}
+			/* Odczytanie d³ugoœci wiadomoœci */
+			int rgb, b = 0, length = 0;
+			for (int x = 0; x < width; x++)
+				for (int y = 0; y < height; y++) {
+					rgb = imgWej.getRGB(x, y);
+					if (b < Integer.SIZE) {
+						length <<= 1;
+						length += (rgb & maskaOdczytu) >> shift;
+						b++;
+					}
+				}
+			byte[] wiadomoscBit = new byte[Integer.SIZE + length * 8];
+			/* Ekstrahowanie wiadomoœci i zerowanie jej w obrazku wyjœciowym */
+			b = 0;
+			BufferedImage imgWyj = new BufferedImage(width, height,
+					BufferedImage.TYPE_INT_RGB);
+			for (int x = 0; x < width; x++)
+				for (int y = 0; y < height; y++) {
+					rgb = imgWej.getRGB(x, y);
+					if (b < Integer.SIZE + length * 8) {
+						wiadomoscBit[b++] = (byte) ((rgb & maskaOdczytu) >> shift);
+						rgb &= maskaZerowania;
+					}
+					imgWyj.setRGB(x, y, rgb);
+				}
+			imgWej.flush();
+			/* Bity do bajtów */
+			b = 0;
+			byte temp = 0;
+			byte[] wiadomosc = new byte[length];
+			int i;
+			for (i = Integer.SIZE; i < wiadomoscBit.length; i += 8) {
+				temp = wiadomoscBit[i];
+				for (int j = i + 1; j <= i + 7; j++) {
+					temp <<= 1;
+					temp += wiadomoscBit[j];
+				}
+				wiadomosc[b++] = temp;
+			}
+			/* Zapis wiadomoœci */
+			try {
+				Files.write(Paths.get(sciezkaWiadomosc.getText()), wiadomosc);
+			} catch (IOException e) {
+				e.printStackTrace();
+				JOptionPane.showMessageDialog(panel, e.getLocalizedMessage(),
+						tBLAD, JOptionPane.ERROR_MESSAGE);
+				return;
+			}
+			try {
+				zapiszWyjscie(imgWyj);
+			} catch (IOException e) {
+				return;
+			}
+			JOptionPane.showMessageDialog(panel, SUKCES + "\nOdczytano "
+					+ length + " bajtów wiadomoœci.", "Sukces",
+					JOptionPane.INFORMATION_MESSAGE);
+		} else
+			JOptionPane.showMessageDialog(panel, eMALY, tBLAD,
+					JOptionPane.ERROR_MESSAGE);
+	}
+	
+	private static void wczytajWejscie() throws IOException {
+		try {
+			imgWej = ImageIO.read(new File(sciezkaWejscie.getText()));
+		} catch (IOException e) {
+			e.printStackTrace();
+			sciezkaWejscie.setText(e.getLocalizedMessage());
+			opisObrazekWejscie.setText(e.getLocalizedMessage());
+			obrazekWejscie
+					.setIcon(new ImageIcon(
+							MainWindow.class
+									.getResource("/javax/swing/plaf/basic/icons/image-failed.png")));
+			throw e;
+		}
+		obrazekWejscie.setIcon(new ImageIcon(Scalr.resize(imgWej,
+				obrazekWejscie.getWidth(), obrazekWejscie.getHeight(),
+				Scalr.OP_ANTIALIAS)));
+		opisObrazekWejscie.setText(Paths.get(sciezkaWejscie.getText())
+				.getFileName().toString()
+				+ " ("
+				+ imgWej.getWidth()
+				+ " x "
+				+ imgWej.getHeight()
+				+ " pikseli)");
+	}
+
+	private static void zapiszWyjscie(BufferedImage imgWyj) throws IOException {
+		File plikWyj = new File(sciezkaWyjscie.getText());
+		try {
+			plikWyj.createNewFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(panel, e.getLocalizedMessage(),
+					tBLAD, JOptionPane.ERROR_MESSAGE);
+			throw e;
+		}
+		try {
+			if (!ImageIO.write(imgWyj, "bmp", plikWyj)) {
+				final String eWriter = "Nie znaleziono ImageWritera";
+				JOptionPane.showMessageDialog(panel, eWriter, tBLAD,
+						JOptionPane.ERROR_MESSAGE);
+				obrazekWyjscie
+						.setIcon(new ImageIcon(
+								MainWindow.class
+										.getResource("/javax/swing/plaf/basic/icons/image-failed.png")));
+				throw new IOException(eWriter);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(panel, e.getLocalizedMessage(),
+					tBLAD, JOptionPane.ERROR_MESSAGE);
+			obrazekWyjscie
+					.setIcon(new ImageIcon(
+							MainWindow.class
+									.getResource("/javax/swing/plaf/basic/icons/image-failed.png")));
+			throw e;
+		}
+		obrazekWyjscie.setIcon(new ImageIcon(Scalr.resize(imgWyj,
+				obrazekWyjscie.getWidth(), obrazekWyjscie.getHeight(),
+				Scalr.OP_ANTIALIAS)));
+		imgWyj.flush();
+		opisObrazekWyjscie.setText(Paths.get(sciezkaWyjscie.getText())
+				.getFileName().toString()
+				+ " ("
+				+ imgWyj.getWidth()
+				+ " x "
+				+ imgWyj.getHeight()
+				+ " pikseli)");
 	}
 
 	/** Tworzy GUI */
