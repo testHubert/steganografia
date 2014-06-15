@@ -33,15 +33,15 @@ import org.imgscalr.Scalr;
 
 /** @author Hubert */
 public class MainWindow {
-	
+
 	private static enum Kolor {
 		CZERWONY, ZIELONY, NIEBIESKI
 	}
-	
+
 	private static enum Okno {
 		WEJSCIE, WYJSCIE, WIADOMOSC
 	}
-	
+
 	private final static String tBLAD = "B³¹d";
 	private final static String tODCZYT = "Wybierz plik";
 	private final static String tZAPIS = "Wybierz miejsce zapisu";
@@ -102,7 +102,15 @@ public class MainWindow {
 	public MainWindow() {
 		initGUI();
 	}
-	
+
+	/**
+	 * Wtapia wiadomoœæ do nowego obrazka.
+	 * 
+	 * @param kolor
+	 *            - czêœæ piksela do którego LSB ma byæ wtapiana wiadomoœæ (
+	 *            {@link Kolor} )
+	 * @see #ekstrahowanie(Kolor)
+	 */
 	private static void wtapianie(Kolor kolor) {
 		try {
 			wczytajWejscie();
@@ -196,7 +204,15 @@ public class MainWindow {
 					+ " bajtów mo¿liwych do zapisania.\nD³ugoœæ wiadomoœci: "
 					+ length + " bajtów.", tBLAD, JOptionPane.ERROR_MESSAGE);
 	}
-	
+
+	/**
+	 * Ekstrahuje wiadomoœæ z obrazka i tworzy nowy z wyzerowan¹ wiadomoœci¹.
+	 * 
+	 * @param kolor
+	 *            - czêœæ piksela z którego LSB ma byæ ekstrahowana wiadomoœæ (
+	 *            {@link Kolor} )
+	 * @see #wtapianie(Kolor)
+	 */
 	private static void ekstrahowanie(Kolor kolor) {
 		try {
 			wczytajWejscie();
@@ -288,7 +304,14 @@ public class MainWindow {
 			JOptionPane.showMessageDialog(panel, eMALY, tBLAD,
 					JOptionPane.ERROR_MESSAGE);
 	}
-	
+
+	/**
+	 * Tworzy {@link JFileChooser} dla przycisków szukania.
+	 * 
+	 * @param okno
+	 *            - {@link Okno}
+	 * @return czy wybrano plik bez b³êdów
+	 */
 	private static boolean szukajka(Okno okno) {
 		final JFileChooser wybor = new JFileChooser();
 		final FileNameExtensionFilter filtr = new FileNameExtensionFilter(
@@ -348,7 +371,14 @@ public class MainWindow {
 		}
 		return true;
 	}
-	
+
+	/**
+	 * Wczytuje obrazek wejœciowy.
+	 * 
+	 * @throws IOException
+	 *             przy b³êdzie wczytania pliku
+	 * @see #zapiszWyjscie(BufferedImage)
+	 */
 	private static void wczytajWejscie() throws IOException {
 		try {
 			imgWej = ImageIO.read(new File(sciezkaWejscie.getText()));
@@ -374,6 +404,15 @@ public class MainWindow {
 				+ " pikseli)");
 	}
 
+	/**
+	 * Zapisuje obrazek wyjœciowy.
+	 * 
+	 * @param imgWyj
+	 *            - obrazek
+	 * @throws IOException
+	 *             przy b³êdzie zapisu / tworzenia pliku
+	 * @see #wczytajWejscie()
+	 */
 	private static void zapiszWyjscie(BufferedImage imgWyj) throws IOException {
 		File plikWyj = new File(sciezkaWyjscie.getText());
 		try {
