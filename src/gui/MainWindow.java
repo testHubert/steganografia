@@ -3,12 +3,18 @@ package gui;
 import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
 
+import javax.imageio.ImageIO;
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
@@ -16,9 +22,12 @@ import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 
+import org.imgscalr.Scalr;
+
 /** @author Hubert */
 public class MainWindow {
 
+	private final static String tBLAD = "B³¹d";
 	private final static String tWEJSCIE = "Scie¿ka do obrazka";
 	private final static String tWYJSCIE = "Gdzie zapisaæ obrazek z wtopion¹ b¹dŸ wyzerowan¹ wiadomoœci¹";
 	private final static String tWIADOMOSC = "Scie¿ka do pliku z wiadomoœci¹ lub gdzie zapisaæ ekstrahowan¹ wiadomoœæ";
@@ -34,6 +43,7 @@ public class MainWindow {
 	private static JLabel obrazekWyjscie;
 	private static JLabel opisObrazekWejscie;
 	private static JLabel opisObrazekWyjscie;
+	private static BufferedImage imgWej;
 
 	/** Main */
 	public static void main(String[] args) {
@@ -69,6 +79,75 @@ public class MainWindow {
 	/** Konstruktor */
 	public MainWindow() {
 		initGUI();
+	}
+
+	private static void wczytajWejscie() throws IOException {
+		try {
+			imgWej = ImageIO.read(new File(sciezkaWejscie.getText()));
+		} catch (IOException e) {
+			e.printStackTrace();
+			sciezkaWejscie.setText(e.getLocalizedMessage());
+			opisObrazekWejscie.setText(e.getLocalizedMessage());
+			obrazekWejscie
+					.setIcon(new ImageIcon(
+							MainWindow.class
+									.getResource("/javax/swing/plaf/basic/icons/image-failed.png")));
+			throw e;
+		}
+		obrazekWejscie.setIcon(new ImageIcon(Scalr.resize(imgWej,
+				obrazekWejscie.getWidth(), obrazekWejscie.getHeight(),
+				Scalr.OP_ANTIALIAS)));
+		opisObrazekWejscie.setText(Paths.get(sciezkaWejscie.getText())
+				.getFileName().toString()
+				+ " ("
+				+ imgWej.getWidth()
+				+ " x "
+				+ imgWej.getHeight()
+				+ " pikseli)");
+	}
+
+	private static void zapiszWyjscie(BufferedImage imgWyj) throws IOException {
+		File plikWyj = new File(sciezkaWyjscie.getText());
+		try {
+			plikWyj.createNewFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(panel, e.getLocalizedMessage(),
+					tBLAD, JOptionPane.ERROR_MESSAGE);
+			throw e;
+		}
+		try {
+			if (!ImageIO.write(imgWyj, "bmp", plikWyj)) {
+				final String eWriter = "Nie znaleziono ImageWritera";
+				JOptionPane.showMessageDialog(panel, eWriter, tBLAD,
+						JOptionPane.ERROR_MESSAGE);
+				obrazekWyjscie
+						.setIcon(new ImageIcon(
+								MainWindow.class
+										.getResource("/javax/swing/plaf/basic/icons/image-failed.png")));
+				throw new IOException(eWriter);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(panel, e.getLocalizedMessage(),
+					tBLAD, JOptionPane.ERROR_MESSAGE);
+			obrazekWyjscie
+					.setIcon(new ImageIcon(
+							MainWindow.class
+									.getResource("/javax/swing/plaf/basic/icons/image-failed.png")));
+			throw e;
+		}
+		obrazekWyjscie.setIcon(new ImageIcon(Scalr.resize(imgWyj,
+				obrazekWyjscie.getWidth(), obrazekWyjscie.getHeight(),
+				Scalr.OP_ANTIALIAS)));
+		imgWyj.flush();
+		opisObrazekWyjscie.setText(Paths.get(sciezkaWyjscie.getText())
+				.getFileName().toString()
+				+ " ("
+				+ imgWyj.getWidth()
+				+ " x "
+				+ imgWyj.getHeight()
+				+ " pikseli)");
 	}
 
 	/** Tworzy GUI */
