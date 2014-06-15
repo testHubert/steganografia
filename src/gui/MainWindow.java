@@ -3,10 +3,13 @@ package gui;
 import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 
@@ -14,6 +17,7 @@ import javax.imageio.ImageIO;
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -23,6 +27,7 @@ import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 import org.imgscalr.Scalr;
 
@@ -32,11 +37,19 @@ public class MainWindow {
 	private static enum Kolor {
 		CZERWONY, ZIELONY, NIEBIESKI
 	}
-
+	
+	private static enum Okno {
+		WEJSCIE, WYJSCIE, WIADOMOSC
+	}
+	
 	private final static String tBLAD = "B³¹d";
+	private final static String tODCZYT = "Wybierz plik";
+	private final static String tZAPIS = "Wybierz miejsce zapisu";
 	private final static String tWEJSCIE = "Scie¿ka do obrazka";
 	private final static String tWYJSCIE = "Gdzie zapisaæ obrazek z wtopion¹ b¹dŸ wyzerowan¹ wiadomoœci¹";
 	private final static String tWIADOMOSC = "Scie¿ka do pliku z wiadomoœci¹ lub gdzie zapisaæ ekstrahowan¹ wiadomoœæ";
+	private final static String bODCZYT = "Otwórz";
+	private final static String bZAPIS = "Zapisz";
 	private final static String bSZUKAJ = "Szukaj...";
 	private final static String eBRAKPLIKU = "Brak pliku w: ";
 	private final static String eMALY = "Za ma³y obrazek.";
@@ -276,6 +289,66 @@ public class MainWindow {
 					JOptionPane.ERROR_MESSAGE);
 	}
 	
+	private static boolean szukajka(Okno okno) {
+		final JFileChooser wybor = new JFileChooser();
+		final FileNameExtensionFilter filtr = new FileNameExtensionFilter(
+				"Mapy bitowe (.bmp)", "bmp");
+		final String wyb = "Wybieranie...";
+		String pop;
+		switch (okno) {
+		case WEJSCIE:
+			pop = sciezkaWejscie.getText();
+			sciezkaWejscie.setText(wyb);
+			wybor.setDialogTitle(tODCZYT);
+			wybor.setFileFilter(filtr);
+			wybor.setAcceptAllFileFilterUsed(false);
+			if (wybor.showDialog(panel, bODCZYT) == JFileChooser.APPROVE_OPTION) {
+				sciezkaWejscie.setText(wybor.getSelectedFile()
+						.getAbsolutePath());
+				try {
+					wczytajWejscie();
+				} catch (IOException e) {
+					return false;
+				}
+			} else {
+				sciezkaWejscie.setText(pop);
+				return false;
+			}
+			break;
+		case WYJSCIE:
+			pop = sciezkaWyjscie.getText();
+			sciezkaWyjscie.setText(wyb);
+			wybor.setDialogTitle(tZAPIS);
+			wybor.setFileFilter(filtr);
+			wybor.setAcceptAllFileFilterUsed(false);
+			if (wybor.showDialog(panel, bZAPIS) == JFileChooser.APPROVE_OPTION) {
+				String sciezka = wybor.getSelectedFile().getAbsolutePath();
+				if (!sciezka.toLowerCase().endsWith(".bmp"))
+					sciezka += ".bmp";
+				sciezkaWyjscie.setText(sciezka);
+			} else {
+				sciezkaWyjscie.setText(pop);
+				return false;
+			}
+			break;
+		case WIADOMOSC:
+			pop = sciezkaWiadomosc.getText();
+			sciezkaWiadomosc.setText(wyb);
+			wybor.setDialogTitle(tODCZYT + " / " + tZAPIS);
+			if (wybor.showDialog(panel, bODCZYT + " / " + bZAPIS) == JFileChooser.APPROVE_OPTION) {
+				sciezkaWiadomosc.setText(wybor.getSelectedFile()
+						.getAbsolutePath());
+			} else {
+				sciezkaWiadomosc.setText(pop);
+				return false;
+			}
+			break;
+		default:
+			throw new IllegalArgumentException("Niepoprawny typ okna: " + okno);
+		}
+		return true;
+	}
+	
 	private static void wczytajWejscie() throws IOException {
 		try {
 			imgWej = ImageIO.read(new File(sciezkaWejscie.getText()));
@@ -378,6 +451,17 @@ public class MainWindow {
 		sciezkaWejscie = new JTextField();
 		sciezkaWejscie.setText(tWEJSCIE);
 		sciezkaWejscie.setToolTipText(tWEJSCIE);
+		sciezkaWejscie.addKeyListener(new KeyAdapter() {
+			@Override
+			public void keyReleased(KeyEvent e) {
+				if (e.getKeyCode() == KeyEvent.VK_ENTER)
+					try {
+						wczytajWejscie();
+					} catch (IOException IOe) {
+						return;
+					}
+			}
+		});
 		sciezkaWejscie.setBounds(105, 8, 565, 26);
 		panel.add(sciezkaWejscie);
 
@@ -394,14 +478,32 @@ public class MainWindow {
 		panel.add(sciezkaWiadomosc);
 
 		final JButton SzukajWejscie = new JButton(bSZUKAJ);
+		SzukajWejscie.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				szukajka(Okno.WEJSCIE);
+			}
+		});
 		SzukajWejscie.setBounds(680, 8, 94, 26);
 		panel.add(SzukajWejscie);
 
 		final JButton SzukajWyjscie = new JButton(bSZUKAJ);
+		SzukajWyjscie.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				szukajka(Okno.WYJSCIE);
+			}
+		});
 		SzukajWyjscie.setBounds(680, 35, 94, 26);
 		panel.add(SzukajWyjscie);
 
 		final JButton SzukajWiadomosc = new JButton(bSZUKAJ);
+		SzukajWiadomosc.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				szukajka(Okno.WIADOMOSC);
+			}
+		});
 		SzukajWiadomosc.setBounds(680, 64, 94, 26);
 		panel.add(SzukajWiadomosc);
 
@@ -452,6 +554,16 @@ public class MainWindow {
 
 		final JButton Odswiez = new JButton("Odœwie¿");
 		Odswiez.setToolTipText("Odœwie¿ podgl¹d obrazka wejœciowego");
+		Odswiez.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				try {
+					wczytajWejscie();
+				} catch (IOException IOe) {
+					return;
+				}
+			}
+		});
 		Odswiez.setBounds(157, 121, 94, 26);
 		panel.add(Odswiez);
 
@@ -475,6 +587,54 @@ public class MainWindow {
 		Radio.add(Niebieski);
 
 		final JButton Uruchom = new JButton("Uruchom");
+		Uruchom.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				boolean sciezkaPoprawna = false;
+				try {
+					sciezkaPoprawna = Paths.get(sciezkaWejscie.getText())
+							.isAbsolute();
+				} catch (InvalidPathException IPe) {
+					sciezkaPoprawna = false;
+				}
+				if (!sciezkaPoprawna)
+					if (!szukajka(Okno.WEJSCIE))
+						return;
+				try {
+					sciezkaPoprawna = Paths.get(sciezkaWyjscie.getText())
+							.isAbsolute();
+				} catch (InvalidPathException IPe) {
+					sciezkaPoprawna = false;
+				}
+				if (!sciezkaPoprawna)
+					if (!szukajka(Okno.WYJSCIE))
+						return;
+				try {
+					sciezkaPoprawna = Paths.get(sciezkaWiadomosc.getText())
+							.isAbsolute();
+				} catch (InvalidPathException IPe) {
+					sciezkaPoprawna = false;
+				}
+				if (!sciezkaPoprawna)
+					if (!szukajka(Okno.WIADOMOSC))
+						return;
+				if (tryb) {
+					if (Czerwony.isSelected())
+						wtapianie(Kolor.CZERWONY);
+					else if (Zielony.isSelected())
+						wtapianie(Kolor.ZIELONY);
+					else if (Niebieski.isSelected())
+						wtapianie(Kolor.NIEBIESKI);
+				} else {
+					if (Czerwony.isSelected())
+						ekstrahowanie(Kolor.CZERWONY);
+					else if (Zielony.isSelected())
+						ekstrahowanie(Kolor.ZIELONY);
+					else if (Niebieski.isSelected())
+						ekstrahowanie(Kolor.NIEBIESKI);
+				}
+			}
+		});
 		Uruchom.setBounds(680, 96, 94, 26);
 		panel.add(Uruchom);
 	}
