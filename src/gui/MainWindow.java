@@ -1,7 +1,6 @@
 package gui;
 
 import java.awt.EventQueue;
-import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
@@ -22,6 +21,8 @@ import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
+
+import org.imgscalr.Scalr;
 
 /** @author Hubert */
 public class MainWindow {
@@ -93,9 +94,9 @@ public class MainWindow {
 									.getResource("/javax/swing/plaf/basic/icons/image-failed.png")));
 			throw e;
 		}
-		obrazekWejscie.setIcon(new ImageIcon(imgWej.getScaledInstance(
+		obrazekWejscie.setIcon(new ImageIcon(Scalr.resize(imgWej,
 				obrazekWejscie.getWidth(), obrazekWejscie.getHeight(),
-				Image.SCALE_SMOOTH)));
+				Scalr.OP_ANTIALIAS)));
 		opisObrazekWejscie.setText(Paths.get(sciezkaWejscie.getText())
 				.getFileName().toString()
 				+ " ("
@@ -136,9 +137,9 @@ public class MainWindow {
 									.getResource("/javax/swing/plaf/basic/icons/image-failed.png")));
 			throw e;
 		}
-		obrazekWyjscie.setIcon(new ImageIcon(imgWyj.getScaledInstance(
+		obrazekWyjscie.setIcon(new ImageIcon(Scalr.resize(imgWyj,
 				obrazekWyjscie.getWidth(), obrazekWyjscie.getHeight(),
-				Image.SCALE_SMOOTH)));
+				Scalr.OP_ANTIALIAS)));
 		imgWyj.flush();
 		opisObrazekWyjscie.setText(Paths.get(sciezkaWyjscie.getText())
 				.getFileName().toString()
